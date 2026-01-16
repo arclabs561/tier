@@ -2,6 +2,7 @@ use super::traits::Clustering;
 use crate::error::{Error, Result};
 
 /// Internal node for In-Tree representation.
+#[allow(dead_code)] // Work-in-progress implementation
 #[derive(Debug, Clone)]
 struct ITNode {
     id: usize,

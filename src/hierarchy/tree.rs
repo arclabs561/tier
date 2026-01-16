@@ -10,6 +10,7 @@ pub struct HierarchyTree {
     /// Parent of each node (-1 for root).
     parents: Vec<i32>,
     /// Height of each node (distance from leaves).
+    #[allow(dead_code)] // Reserved for future ultrametric operations
     heights: Vec<f64>,
     /// Number of leaf nodes.
     num_leaves: usize,

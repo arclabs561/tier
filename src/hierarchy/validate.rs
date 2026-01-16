@@ -253,7 +253,7 @@ impl<T, S> HealthCheck for RaptorTree<T, S> {
                 let _ = children.insert(node.id, node.children.clone());
                 for &child in &node.children {
                     // If a child has multiple parents, keep the first and report later.
-                    parents.entry(child).or_insert(node.id);
+                    let _ = parents.entry(child).or_insert(node.id);
                 }
             }
         }
@@ -452,7 +452,7 @@ pub fn validate_tree_structure(
             }
         }
 
-        in_stack.remove(&node);
+        let _ = in_stack.remove(&node);
         false
     }
 
