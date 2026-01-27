@@ -1,23 +1,17 @@
 # tier
 
-Clustering and hierarchical structure primitives for the Tekne stack.
+Clustering + community detection primitives (feature-gated, domain-agnostic).
 
-## Features
+This repo is **domain-agnostic** (not Anno-specific). The stable contract is in `CONTRACT.md`.
 
-### Clustering
-- **IT-Dendrogram**: In-Tree representation for revealing underlying cluster geometry.
+## What’s in here
 
-### Hierarchical Conformal Prediction
-Implementation of **Split Conformal Prediction (SCP)** for hierarchical data, ensuring coherent prediction intervals across multiple scales.
+- **Clustering** (`cluster`): k-means, DBSCAN, hierarchical clustering, plus utilities.
+- **Community detection** (`community`, `knn-graph`): kNN graph construction + Leiden/Louvain/label-prop style methods.
+- **Hierarchy + conformal** (`std` + modules): hierarchical reconciliation + split conformal prediction.
+- **Metrics / distances** (`metrics`, `wass`): small evaluation helpers used by `flowmatch`’s USGS demos.
 
-- **Reconciliation**:
-  - `Ols`: Ordinary Least Squares
-  - `Wls`: Weighted Least Squares
-  - `MinT`: Minimum Trace (using covariance estimates)
-- **Joint Coverage**: Simultaneous coverage guarantees across all tree nodes.
-- **Integrations**: Direct converters for `strata::tree::RaptorTree` and `strata::tree::Dendrogram`.
-
-## Quick Start
+## Quick Start (hierarchical conformal)
 
 ```rust
 use tier::{HierarchicalConformal, HierarchyTree, ReconciliationMethod};
@@ -33,6 +27,14 @@ cp.calibrate(&y_calib, &y_hat_calib, 0.1)?; // 90% coverage
 
 // 3. Generate coherent intervals
 let (lower, upper) = cp.predict_intervals(&y_hat_test)?;
+```
+
+## Quick Start (embedding clustering / kNN graph)
+
+This example is feature-gated because it depends on vector/graph tooling:
+
+```bash
+cargo run --example embedding_clustering --features knn-graph
 ```
 
 ## Mathematical Foundation
