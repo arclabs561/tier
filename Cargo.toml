@@ -16,9 +16,10 @@ rand = { version = "0.9", optional = true }
 rand_distr = { version = "0.5", optional = true }
 faer = "0.19"
 ndarray-linalg = { version = "0.16", optional = true }
+clump = { version = "0.1.0", optional = true }
 
 # Hierarchical clustering
-kodama = "0.3"
+kodama = { version = "0.3", optional = true }
 
 # Graph algorithms
 petgraph = { version = "0.6", optional = true }
@@ -38,24 +39,24 @@ lapl = { version = "0.1.0", optional = true }
 # Kernel methods (ecosystem crate)
 rkhs = { version = "0.1.0", optional = true }
 
-# Optional extraction: dense clustering primitives
-clump = { version = "0.1.0", optional = true }
+# Distribution distances (ecosystem crate)
+wass = { version = "0.1.1", optional = true }
 
 # Optional stochastic sampling
 kuji = { version = "0.1.0", optional = true }
 
 [features]
-default = ["std", "cluster", "community"]
+#
+# Default posture: hierarchy-first, minimal deps.
+# Algorithms that pull in heavier deps are explicitly opt-in via features.
+default = ["std"]
 std = []
 
 # Algorithm groups
-cluster = ["std", "ndarray", "rand", "rand_distr"]
+cluster = ["std", "ndarray", "rand", "rand_distr", "clump", "dep:kodama"]
 community = ["std", "petgraph"]
 summarize = ["std"]
-full = ["cluster", "community", "summarize", "parallel", "serde", "knn-graph", "metrics", "spectral-faer", "spectral-sparse", "rkhs", "kuji"]
-
-# Use `clump` for overlapping dense primitives (k-means, DBSCAN).
-clump = ["dep:clump"]
+full = ["cluster", "community", "summarize", "parallel", "serde", "knn-graph", "metrics", "spectral-faer", "spectral-sparse", "rkhs", "wass", "kuji"]
 
 # Use `kuji` for stochastic sampling.
 kuji = ["dep:kuji"]
@@ -75,10 +76,17 @@ knn-graph = ["community", "jin"]
 parallel = ["rayon"]
 serde = ["dep:serde"]
 
-[dev-dependencies]
-proptest = { workspace = true }
-criterion = { workspace = true, features = ["html_reports"] }
+# Optional ecosystem integrations.
+#
+# We make these explicit (instead of relying on Cargo's implicit "optional dep => feature")
+# so we can also pull in the supporting numeric types they require.
+clump = ["dep:clump"]
+rkhs = ["dep:rkhs", "ndarray"]
+wass = ["dep:wass", "ndarray"]
 
+[dev-dependencies]
+proptest = "1.9"
+criterion = { version = "0.7", features = ["html_reports"] }
 
 [[example]]
 name = "embedding_clustering"
