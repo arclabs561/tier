@@ -8,7 +8,7 @@
 //! | Metric | Range | Best | Properties |
 //! |--------|-------|------|------------|
 //! | [`nmi`] | [0, 1] | 1 | Normalized, chance-corrected |
-//! | [`ami`] | [-1, 1] | 1 | Adjusted for chance |
+//! | AMI | [-1, 1] | 1 | Adjusted for chance (not implemented yet) |
 //! | [`ari`] | [-1, 1] | 1 | Adjusted Rand Index |
 //! | [`purity`] | [0, 1] | 1 | Simple, biased toward many clusters |
 //! | [`homogeneity`] | [0, 1] | 1 | Each cluster has one class |
