@@ -85,6 +85,13 @@ impl HierarchicalClustering {
         }
 
         let n = data.len();
+        let d = data[0].len();
+        if let Some((_, p)) = data.iter().enumerate().find(|(_, p)| p.len() != d) {
+            return Err(Error::DimensionMismatch {
+                expected: d,
+                found: p.len(),
+            });
+        }
 
         // Build a condensed dissimilarity matrix (upper triangle, row-major).
         // Length is N-choose-2.

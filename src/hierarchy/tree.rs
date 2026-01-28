@@ -1,8 +1,8 @@
 //! Hierarchy tree structures.
 
+use crate::hierarchy::{Dendrogram, RaptorTree};
 use crate::reconciliation::SummingMatrix;
 use faer::Mat;
-use crate::hierarchy::{RaptorTree, Dendrogram};
 
 /// A rooted tree with edge weights, representing an ultrametric.
 #[derive(Debug, Clone)]
@@ -22,7 +22,7 @@ impl HierarchyTree {
         let m = tree.len();
         let n = tree.leaves().len();
         let mut parents = vec![-1i32; m];
-        
+
         for node in tree.iter() {
             let parent_id = node.id;
             for &child_id in &node.children {
@@ -99,6 +99,11 @@ impl HierarchyTree {
     /// Number of total nodes.
     pub fn len(&self) -> usize {
         self.parents.len()
+    }
+
+    /// Whether this tree contains no nodes.
+    pub fn is_empty(&self) -> bool {
+        self.parents.is_empty()
     }
 
     /// Number of leaf nodes.

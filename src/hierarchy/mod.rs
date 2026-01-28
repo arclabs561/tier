@@ -97,15 +97,17 @@
 //! - Kusupati et al. (2022). "Matryoshka Representation Learning." NeurIPS.
 //! - Wei et al. (2022). "ADSampling." VLDB.
 
+pub mod conformal;
 mod dendrogram;
 pub mod foundations;
+#[allow(clippy::module_inception)]
 pub mod hierarchy;
 mod node;
 mod raptor;
-mod validate;
-pub mod conformal;
 pub mod tree;
+mod validate;
 
+pub use conformal::{HierarchicalConformal, ReconciliationScore};
 pub use dendrogram::Dendrogram;
 pub use foundations::{
     embedding_distortion, gromov_hyperbolicity, is_ultrametric, subdominant_ultrametric,
@@ -117,8 +119,7 @@ pub use hierarchy::{
 };
 pub use node::Node;
 pub use raptor::{RaptorTree, TreeConfig};
+pub use tree::HierarchyTree;
 pub use validate::{
     validate_tree_structure, HealthCheck, HealthReport, Severity, ValidationIssue, ValidationReport,
 };
-pub use conformal::{HierarchicalConformal, ReconciliationScore};
-pub use tree::HierarchyTree;

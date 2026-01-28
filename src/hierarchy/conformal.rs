@@ -5,16 +5,19 @@
 //!
 //! Based on: Principato et al. (2024). "Conformal Prediction for Hierarchical Data."
 
-use faer::Mat;
 use crate::error::{Error, Result};
-use crate::reconciliation::{SummingMatrix, ReconciliationMethod, reconcile};
+use crate::reconciliation::{reconcile, ReconciliationMethod, SummingMatrix};
+use faer::Mat;
 
 /// Scores used for conformal prediction.
 pub enum ReconciliationScore {
     /// Absolute residual: $|y - \tilde{y}|$
     AbsoluteResidual,
     /// Mahalanobis distance: $(y - \tilde{y})^T \Sigma^{-1} (y - \tilde{y})$
-    Mahalanobis { covariance: Mat<f64> },
+    Mahalanobis {
+        /// Covariance matrix \(\Sigma\).
+        covariance: Mat<f64>,
+    },
 }
 
 /// Hierarchical Conformal Prediction.
@@ -63,7 +66,7 @@ impl HierarchicalConformal {
         // For joint coverage, we use the Mahalanobis distance if possible,
         // or just Euclidean distance.
         let mut scores = Vec::with_capacity(n_calib);
-        
+
         for j in 0..n_calib {
             let mut score: f64 = 0.0;
             for i in 0..y_calib.nrows() {

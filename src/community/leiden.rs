@@ -444,9 +444,9 @@ mod tests {
         let n1 = graph.add_node(());
         let n2 = graph.add_node(());
 
-        graph.add_edge(n0, n1, ());
-        graph.add_edge(n1, n2, ());
-        graph.add_edge(n0, n2, ());
+        let _ = graph.add_edge(n0, n1, ());
+        let _ = graph.add_edge(n1, n2, ());
+        let _ = graph.add_edge(n0, n2, ());
 
         let leiden = Leiden::new();
         let communities = leiden.detect(&graph).unwrap();
@@ -465,20 +465,20 @@ mod tests {
         let a0 = graph.add_node(());
         let a1 = graph.add_node(());
         let a2 = graph.add_node(());
-        graph.add_edge(a0, a1, ());
-        graph.add_edge(a1, a2, ());
-        graph.add_edge(a0, a2, ());
+        let _ = graph.add_edge(a0, a1, ());
+        let _ = graph.add_edge(a1, a2, ());
+        let _ = graph.add_edge(a0, a2, ());
 
         // Second clique
         let b0 = graph.add_node(());
         let b1 = graph.add_node(());
         let b2 = graph.add_node(());
-        graph.add_edge(b0, b1, ());
-        graph.add_edge(b1, b2, ());
-        graph.add_edge(b0, b2, ());
+        let _ = graph.add_edge(b0, b1, ());
+        let _ = graph.add_edge(b1, b2, ());
+        let _ = graph.add_edge(b0, b2, ());
 
         // Bridge
-        graph.add_edge(a2, b0, ());
+        let _ = graph.add_edge(a2, b0, ());
 
         let leiden = Leiden::new();
         let communities = leiden.detect(&graph).unwrap();
@@ -513,9 +513,9 @@ mod tests {
         let d = graph.add_node(());
         let e = graph.add_node(());
 
-        graph.add_edge(a, b, ());
-        graph.add_edge(b, c, ());
-        graph.add_edge(d, e, ());
+        let _ = graph.add_edge(a, b, ());
+        let _ = graph.add_edge(b, c, ());
+        let _ = graph.add_edge(d, e, ());
 
         let leiden = Leiden::new();
         let communities = leiden.detect(&graph).unwrap();
@@ -542,7 +542,7 @@ mod tests {
     #[test]
     fn test_leiden_single_node() {
         let mut graph = UnGraph::<(), ()>::new_undirected();
-        graph.add_node(());
+        let _ = graph.add_node(());
 
         let leiden = Leiden::new();
         let communities = leiden.detect(&graph).unwrap();
@@ -560,13 +560,13 @@ mod tests {
 
         // Create a larger structure
         for _ in 0..10 {
-            graph.add_node(());
+            let _ = graph.add_node(());
         }
         // Connect as a chain
         for i in 0..9 {
             let n1 = petgraph::graph::NodeIndex::new(i);
             let n2 = petgraph::graph::NodeIndex::new(i + 1);
-            graph.add_edge(n1, n2, ());
+            let _ = graph.add_edge(n1, n2, ());
         }
 
         let low_res = Leiden::new().with_resolution(0.5);
@@ -594,21 +594,21 @@ mod tests {
 
         // Create a moderately complex graph
         for _ in 0..20 {
-            graph.add_node(());
+            let _ = graph.add_node(());
         }
         // Add some edges
         for i in 0..15 {
             let n1 = petgraph::graph::NodeIndex::new(i);
             let n2 = petgraph::graph::NodeIndex::new(i + 1);
-            graph.add_edge(n1, n2, ());
+            let _ = graph.add_edge(n1, n2, ());
         }
         // Add some cross-links
-        graph.add_edge(
+        let _ = graph.add_edge(
             petgraph::graph::NodeIndex::new(0),
             petgraph::graph::NodeIndex::new(5),
             (),
         );
-        graph.add_edge(
+        let _ = graph.add_edge(
             petgraph::graph::NodeIndex::new(10),
             petgraph::graph::NodeIndex::new(15),
             (),

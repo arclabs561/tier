@@ -27,6 +27,9 @@ pub struct ItDendrogram {
 }
 
 impl ItDendrogram {
+    /// Create a new IT-Dendrogram clusterer.
+    ///
+    /// - \(k\) controls the neighborhood size used for density estimation.
     pub fn new(k: usize) -> Self {
         Self { k }
     }
@@ -36,7 +39,7 @@ impl ItDendrogram {
         // Real implementations might use more robust kernel density.
         let n = data.len();
         let mut densities = vec![0.0; n];
-        
+
         for i in 0..n {
             let mut distances = Vec::with_capacity(n);
             for j in 0..n {
@@ -52,28 +55,36 @@ impl ItDendrogram {
     }
 
     fn dist(&self, a: &[f32], b: &[f32]) -> f32 {
-        a.iter().zip(b).map(|(x, y)| (x - y).powi(2)).sum::<f32>().sqrt()
+        a.iter()
+            .zip(b)
+            .map(|(x, y)| (x - y).powi(2))
+            .sum::<f32>()
+            .sqrt()
     }
 }
 
 impl Clustering for ItDendrogram {
     fn fit_predict(&self, data: &[Vec<f32>]) -> Result<Vec<usize>> {
-        if data.is_empty() { return Err(Error::EmptyInput); }
+        if data.is_empty() {
+            return Err(Error::EmptyInput);
+        }
         let n = data.len();
-        
+
         // 1. Estimate densities
         let densities = self.density_estimation(data);
-        
+
         // 2. Build In-Tree: link to nearest neighbor with higher density
         let mut parent = vec![None; n];
         let mut roots = Vec::new();
-        
+
         for i in 0..n {
             let mut best_dist = f32::INFINITY;
             let mut best_parent = None;
-            
+
             for j in 0..n {
-                if i == j { continue; }
+                if i == j {
+                    continue;
+                }
                 if densities[j] > densities[i] {
                     let d = self.dist(&data[i], &data[j]);
                     if d < best_dist {
@@ -82,14 +93,14 @@ impl Clustering for ItDendrogram {
                     }
                 }
             }
-            
+
             if let Some(p) = best_parent {
                 parent[i] = Some(p);
             } else {
                 roots.push(i); // Local density maximum
             }
         }
-        
+
         // 3. Assign labels based on connected components (roots)
         // Each root defines a cluster basin.
         // We trace paths up to roots.
@@ -103,18 +114,18 @@ impl Clustering for ItDendrogram {
             // `curr` is now a root. Map root ID to a cluster label 0..k
             labels[i] = curr;
         }
-        
+
         // Remap labels to contiguous range 0..num_clusters
         let mut unique_labels = labels.clone();
         unique_labels.sort();
         unique_labels.dedup();
-        
+
         let label_map: std::collections::HashMap<_, _> = unique_labels
             .iter()
             .enumerate()
             .map(|(i, &l)| (l, i))
             .collect();
-            
+
         Ok(labels.iter().map(|l| label_map[l]).collect())
     }
 

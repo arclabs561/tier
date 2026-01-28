@@ -6,9 +6,9 @@
 //! Reconciliation ensures that base forecasts $\hat{y}$ are adjusted to
 //! $\tilde{y}$ such that $\tilde{y}$ satisfies the constraints.
 
-use faer::{Mat, MatRef};
-use faer::prelude::*;
 use crate::error::{Error, Result};
+use faer::prelude::*;
+use faer::{Mat, MatRef};
 
 /// A structural summing matrix for a hierarchy.
 ///
@@ -94,12 +94,12 @@ pub fn reconcile(
 
     // We solve the problem: (S^T W^-1 S) b = S^T W^-1 y_hat
     // Then y_tilde = S b
-    
+
     let b = match method {
         ReconciliationMethod::Ols => {
             let st = s_mat.transpose();
-            let sts = &st * s_mat;
-            let sty = &st * base_forecasts;
+            let sts = st * s_mat;
+            let sty = st * base_forecasts;
             sts.full_piv_lu().solve(&sty)
         }
         ReconciliationMethod::Wls { weights } => {
@@ -109,7 +109,7 @@ pub fn reconcile(
                     actual: format!("{} weights", weights.len()),
                 });
             }
-            
+
             // W^-1 S and W^-1 y_hat
             let mut winv_s = Mat::<f64>::zeros(m, n);
             let mut winv_y = Mat::<f64>::zeros(m, base_forecasts.ncols());
@@ -122,10 +122,10 @@ pub fn reconcile(
                     winv_y[(i, k)] = w_i_inv * base_forecasts[(i, k)];
                 }
             }
-            
+
             let st = s_mat.transpose();
-            let st_winv_s = &st * &winv_s;
-            let st_winv_y = &st * &winv_y;
+            let st_winv_s = st * &winv_s;
+            let st_winv_y = st * &winv_y;
             st_winv_s.full_piv_lu().solve(&st_winv_y)
         }
         ReconciliationMethod::MinT { covariance } => {
@@ -135,16 +135,16 @@ pub fn reconcile(
                     actual: format!("{}x{} covariance", covariance.nrows(), covariance.ncols()),
                 });
             }
-            
+
             // Solve Sigma * X = S and Sigma * Y = y_hat
             // Then X = Sigma^-1 S and Y = Sigma^-1 y_hat
             let lu = covariance.full_piv_lu();
             let sigmainv_s = lu.solve(s_mat);
             let sigmainv_y = lu.solve(base_forecasts);
-            
+
             let st = s_mat.transpose();
-            let lhs = &st * &sigmainv_s;
-            let rhs = &st * &sigmainv_y;
+            let lhs = st * &sigmainv_s;
+            let rhs = st * &sigmainv_y;
             lhs.full_piv_lu().solve(&rhs)
         }
     };

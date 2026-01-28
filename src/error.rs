@@ -10,10 +10,20 @@ pub enum Error {
     EmptyInput,
 
     /// Matrix dimension mismatch (usize).
-    DimensionMismatch { expected: usize, found: usize },
+    DimensionMismatch {
+        /// Expected dimension.
+        expected: usize,
+        /// Found dimension.
+        found: usize,
+    },
 
     /// Shape mismatch (string description).
-    ShapeMismatch { expected: String, actual: String },
+    ShapeMismatch {
+        /// Expected shape description.
+        expected: String,
+        /// Actual shape description.
+        actual: String,
+    },
 
     /// Matrix inversion failure.
     InversionFailed,

@@ -32,7 +32,7 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use strata::community::{knn_graph_from_embeddings, Leiden, CommunityDetection};
+//! use tier::community::{knn_graph_from_embeddings, Leiden, CommunityDetection};
 //!
 //! // Your embeddings (e.g., from sentence-transformers)
 //! let embeddings: Vec<Vec<f32>> = /* ... */;

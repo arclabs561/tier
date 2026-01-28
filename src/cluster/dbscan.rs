@@ -175,6 +175,13 @@ impl Clustering for Dbscan {
         if n == 0 {
             return Err(Error::EmptyInput);
         }
+        let d = data[0].len();
+        if let Some((_, p)) = data.iter().enumerate().find(|(_, p)| p.len() != d) {
+            return Err(Error::DimensionMismatch {
+                expected: d,
+                found: p.len(),
+            });
+        }
 
         if self.epsilon <= 0.0 {
             return Err(Error::InvalidParameter {

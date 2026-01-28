@@ -46,11 +46,8 @@
 
 use super::traits::Clustering;
 use crate::error::{Error, Result};
-use ndarray::Array2;
-use rand::prelude::*;
-
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
+use clump::{kmeans as clump_kmeans, ClumpError, KMeansConfig};
+use rand::Rng;
 
 /// K-means clustering algorithm.
 #[derive(Debug, Clone)]
@@ -94,64 +91,18 @@ impl Kmeans {
         self
     }
 
-    /// Initialize centroids using k-means++ algorithm.
-    fn init_centroids(&self, data: &Array2<f32>, rng: &mut impl Rng) -> Array2<f32> {
-        let n = data.nrows();
-        let d = data.ncols();
-        let mut centroids = Array2::zeros((self.k, d));
+    fn clump_cfg(&self, n: usize) -> KMeansConfig {
+        // `tier::Kmeans` historically allowed `seed=None` (non-deterministic).
+        // `clump` always wants an explicit seed; generate one if needed.
+        let mut rng = rand::rng();
+        let seed = self.seed.unwrap_or_else(|| rng.random());
 
-        // First centroid: random point
-        let first = rng.random_range(0..n);
-        centroids.row_mut(0).assign(&data.row(first));
-
-        // Remaining centroids: k-means++ selection
-        for i in 1..self.k {
-            let mut distances: Vec<f32> = Vec::with_capacity(n);
-
-            for j in 0..n {
-                let point = data.row(j);
-                let min_dist = (0..i)
-                    .map(|c| {
-                        let centroid = centroids.row(c);
-                        point
-                            .iter()
-                            .zip(centroid.iter())
-                            .map(|(a, b)| (a - b).powi(2))
-                            .sum::<f32>()
-                    })
-                    .fold(f32::MAX, f32::min);
-                distances.push(min_dist);
-            }
-
-            // Sample proportional to squared distance
-            let total: f32 = distances.iter().sum();
-            if total == 0.0 {
-                let idx = rng.random_range(0..n);
-                centroids.row_mut(i).assign(&data.row(idx));
-                continue;
-            }
-
-            let threshold = rng.random::<f32>() * total;
-            let mut cumsum = 0.0;
-            let mut selected = 0;
-
-            for (j, &d) in distances.iter().enumerate() {
-                cumsum += d;
-                if cumsum >= threshold {
-                    selected = j;
-                    break;
-                }
-            }
-
-            centroids.row_mut(i).assign(&data.row(selected));
+        KMeansConfig {
+            k: self.k.min(n),
+            max_iters: self.max_iter,
+            tol: self.tol as f32,
+            seed,
         }
-
-        centroids
-    }
-
-    /// Compute squared Euclidean distance.
-    fn squared_distance(a: &ndarray::ArrayView1<'_, f32>, b: &ndarray::ArrayView1<'_, f32>) -> f32 {
-        a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum()
     }
 }
 
@@ -171,8 +122,15 @@ impl Clustering for Kmeans {
             });
         }
 
-        // Convert to ndarray
-        let mut flat: Vec<f32> = Vec::with_capacity(n * d);
+        if d == 0 {
+            return Err(Error::DimensionMismatch {
+                expected: 1,
+                found: 0,
+            });
+        }
+
+        // Validate dimensions and build slice refs for `clump` (backend-agnostic core).
+        let mut refs: Vec<&[f32]> = Vec::with_capacity(n);
         for point in data {
             if point.len() != d {
                 return Err(Error::DimensionMismatch {
@@ -180,97 +138,23 @@ impl Clustering for Kmeans {
                     found: point.len(),
                 });
             }
-            flat.extend(point);
-        }
-        let data_arr =
-            Array2::from_shape_vec((n, d), flat).map_err(|e| Error::Other(e.to_string()))?;
-
-        // Initialize RNG
-        let mut rng: Box<dyn RngCore> = match self.seed {
-            Some(s) => Box::new(StdRng::seed_from_u64(s)),
-            None => Box::new(rand::rng()),
-        };
-
-        // Initialize centroids
-        let mut centroids = self.init_centroids(&data_arr, &mut rng);
-        let mut labels = vec![0usize; n];
-
-        for _iter in 0..self.max_iter {
-            // Assignment step - parallel when feature enabled
-            #[cfg(feature = "parallel")]
-            {
-                let centroids_ref = &centroids;
-                labels.par_iter_mut().enumerate().for_each(|(i, label)| {
-                    let point = data_arr.row(i);
-                    let mut best_cluster = 0;
-                    let mut best_dist = f32::MAX;
-
-                    for k in 0..self.k {
-                        let dist = Self::squared_distance(&point, &centroids_ref.row(k));
-                        if dist < best_dist {
-                            best_dist = dist;
-                            best_cluster = k;
-                        }
-                    }
-                    *label = best_cluster;
-                });
-            }
-
-            #[cfg(not(feature = "parallel"))]
-            for (i, label) in labels.iter_mut().enumerate() {
-                let point = data_arr.row(i);
-                let mut best_cluster = 0;
-                let mut best_dist = f32::MAX;
-
-                for k in 0..self.k {
-                    let dist = Self::squared_distance(&point, &centroids.row(k));
-                    if dist < best_dist {
-                        best_dist = dist;
-                        best_cluster = k;
-                    }
-                }
-                *label = best_cluster;
-            }
-
-            // Update step
-            let mut new_centroids = Array2::zeros((self.k, d));
-            let mut counts = vec![0usize; self.k];
-
-            for i in 0..n {
-                let k = labels[i];
-                for j in 0..d {
-                    new_centroids[[k, j]] += data_arr[[i, j]];
-                }
-                counts[k] += 1;
-            }
-
-            for k in 0..self.k {
-                if counts[k] > 0 {
-                    for j in 0..d {
-                        new_centroids[[k, j]] /= counts[k] as f32;
-                    }
-                } else {
-                    // Empty cluster: reinitialize randomly
-                    let idx = rng.random_range(0..n);
-                    new_centroids.row_mut(k).assign(&data_arr.row(idx));
-                }
-            }
-
-            // Check convergence
-            let shift: f32 = centroids
-                .iter()
-                .zip(new_centroids.iter())
-                .map(|(a, b)| (a - b).powi(2))
-                .sum();
-
-            centroids = new_centroids;
-
-            if shift < self.tol as f32 {
-                break;
-            }
+            refs.push(point.as_slice());
         }
 
-        Ok(labels)
+        let cfg = self.clump_cfg(n);
+        let res = clump_kmeans(&refs, &cfg).map_err(|e| match e {
+            ClumpError::EmptyInput => Error::EmptyInput,
+            ClumpError::InvalidK => Error::InvalidClusterCount {
+                requested: self.k,
+                n_items: n,
+            },
+            ClumpError::DimensionMismatch { expected, got } => Error::DimensionMismatch {
+                expected,
+                found: got,
+            },
+        })?;
+
+        Ok(res.assignments)
     }
 
     fn n_clusters(&self) -> usize {
@@ -281,6 +165,7 @@ impl Clustering for Kmeans {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn test_kmeans_basic() {
@@ -394,5 +279,39 @@ mod tests {
         let kmeans = Kmeans::new(5); // k > n
         let result = kmeans.fit_predict(&data);
         assert!(result.is_err());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 64,
+            .. ProptestConfig::default()
+        })]
+        #[test]
+        fn prop_kmeans_deterministic_with_seed_on_random_data(
+            n in 1usize..60,
+            dim in 1usize..8,
+            k in 1usize..8,
+            seed in any::<u64>(),
+        ) {
+            prop_assume!(k <= n);
+            let mut data: Vec<Vec<f32>> = Vec::with_capacity(n);
+            // Deterministic pseudo-random-ish floats without pulling in extra RNGs here.
+            for i in 0..n {
+                let mut v = vec![0.0f32; dim];
+                for d in 0..dim {
+                    let u = (((i * 53 + d * 19) % 101) as f32 / 101.0) * 2.0 - 1.0;
+                    // Add a tiny seed-dependent offset to avoid accidental symmetries, but keep it deterministic.
+                    let off = (((seed ^ ((i as u64) << 32) ^ (d as u64)) % 97) as f32 - 48.0) * 1e-4;
+                    v[d] = u + off;
+                }
+                data.push(v);
+            }
+
+            let km1 = Kmeans::new(k).with_seed(seed);
+            let km2 = Kmeans::new(k).with_seed(seed);
+            let a1 = km1.fit_predict(&data).unwrap();
+            let a2 = km2.fit_predict(&data).unwrap();
+            prop_assert_eq!(a1, a2);
+        }
     }
 }

@@ -412,9 +412,9 @@ mod tests {
         let n1 = graph.add_node(());
         let n2 = graph.add_node(());
 
-        graph.add_edge(n0, n1, ());
-        graph.add_edge(n1, n2, ());
-        graph.add_edge(n0, n2, ());
+        let _ = graph.add_edge(n0, n1, ());
+        let _ = graph.add_edge(n1, n2, ());
+        let _ = graph.add_edge(n0, n2, ());
 
         let louvain = Louvain::new();
         let communities = louvain.detect(&graph).unwrap();
@@ -434,20 +434,20 @@ mod tests {
         let a0 = graph.add_node(());
         let a1 = graph.add_node(());
         let a2 = graph.add_node(());
-        graph.add_edge(a0, a1, ());
-        graph.add_edge(a1, a2, ());
-        graph.add_edge(a0, a2, ());
+        let _ = graph.add_edge(a0, a1, ());
+        let _ = graph.add_edge(a1, a2, ());
+        let _ = graph.add_edge(a0, a2, ());
 
         // Second clique
         let b0 = graph.add_node(());
         let b1 = graph.add_node(());
         let b2 = graph.add_node(());
-        graph.add_edge(b0, b1, ());
-        graph.add_edge(b1, b2, ());
-        graph.add_edge(b0, b2, ());
+        let _ = graph.add_edge(b0, b1, ());
+        let _ = graph.add_edge(b1, b2, ());
+        let _ = graph.add_edge(b0, b2, ());
 
         // Bridge
-        graph.add_edge(a2, b0, ());
+        let _ = graph.add_edge(a2, b0, ());
 
         let louvain = Louvain::new();
         let communities = louvain.detect(&graph).unwrap();
@@ -477,7 +477,7 @@ mod tests {
     #[test]
     fn test_louvain_single_node() {
         let mut graph = UnGraph::<(), ()>::new_undirected();
-        graph.add_node(());
+        let _ = graph.add_node(());
 
         let louvain = Louvain::new();
         let communities = louvain.detect(&graph).unwrap();
@@ -490,8 +490,8 @@ mod tests {
     fn test_louvain_disconnected() {
         // Two isolated nodes
         let mut graph = UnGraph::<(), ()>::new_undirected();
-        graph.add_node(());
-        graph.add_node(());
+        let _ = graph.add_node(());
+        let _ = graph.add_node(());
 
         let louvain = Louvain::new();
         let communities = louvain.detect(&graph).unwrap();

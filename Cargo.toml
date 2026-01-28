@@ -138,3 +138,5 @@ multiple_crate_versions = "allow"
 wrong_self_convention = "allow"
 module_name_repetitions = "allow"
 
+[workspace]
+

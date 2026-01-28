@@ -134,8 +134,8 @@ mod tests {
         let n3 = graph.add_node(());
 
         // Two disconnected edges
-        graph.add_edge(n0, n1, ());
-        graph.add_edge(n2, n3, ());
+        let _ = graph.add_edge(n0, n1, ());
+        let _ = graph.add_edge(n2, n3, ());
 
         let lp = LabelPropagation::new().with_seed(42);
         let communities = lp.detect(&graph).unwrap();

@@ -9,7 +9,7 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use strata::tree::{RaptorTree, HealthCheck};
+//! use tier::tree::{RaptorTree, HealthCheck};
 //!
 //! let tree = RaptorTree::new(config);
 //! // ... build tree ...
@@ -470,7 +470,7 @@ pub fn validate_tree_structure(
 #[allow(clippy::unwrap_used, unused_results)]
 mod tests {
     use super::*;
-    use crate::tree::{RaptorTree, TreeConfig};
+    use crate::hierarchy::{RaptorTree, TreeConfig};
     use proptest::prelude::*;
 
     fn chunk_cluster(ids: &[usize], fanout: usize) -> Vec<Vec<usize>> {

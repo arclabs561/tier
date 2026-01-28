@@ -76,7 +76,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use strata::cluster::{Kmeans, Gmm, Clustering, SoftClustering};
+//! use tier::cluster::{Kmeans, Gmm, Clustering, SoftClustering};
 //!
 //! let data = vec![
 //!     vec![0.0, 0.0],
@@ -101,10 +101,10 @@
 mod dbscan;
 mod gmm;
 mod hierarchical;
+mod it_dendrogram;
 mod kmeans;
 mod kmeans_elkan;
 mod traits;
-mod it_dendrogram;
 
 #[cfg(feature = "spectral")]
 pub mod spectral;
@@ -112,8 +112,8 @@ pub mod spectral;
 pub use dbscan::{Dbscan, DbscanExt, NOISE};
 pub use gmm::Gmm;
 pub use hierarchical::{HierarchicalClustering, Linkage};
-pub use kmeans::Kmeans;
 pub use it_dendrogram::ItDendrogram;
+pub use kmeans::Kmeans;
 pub use kmeans_elkan::{ElkanStats, KmeansElkan};
 pub use traits::{Clustering, SoftClustering};
 

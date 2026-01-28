@@ -25,7 +25,7 @@
 //! # Example
 //!
 //! ```rust
-//! use strata::metrics::{nmi, ari, purity};
+//! use tier::metrics::{nmi, ari, purity};
 //!
 //! let pred = [0, 0, 1, 1, 2, 2];
 //! let truth = [0, 0, 0, 1, 1, 1];
@@ -67,7 +67,7 @@ use std::collections::HashMap;
 /// # Example
 ///
 /// ```rust
-/// use strata::metrics::nmi;
+/// use tier::metrics::nmi;
 ///
 /// // Perfect clustering
 /// let pred = [0, 0, 1, 1];
@@ -238,7 +238,7 @@ fn nmi_impl(
 /// # Example
 ///
 /// ```rust
-/// use strata::metrics::ari;
+/// use tier::metrics::ari;
 ///
 /// let pred = [0, 0, 1, 1];
 /// let truth = [0, 0, 1, 1];
@@ -470,7 +470,7 @@ fn conditional_entropies(a: &[usize], b: &[usize]) -> (f64, f64) {
         let p_b = nb as f64 / n;
         let mut h_a_in_b = 0.0;
 
-        for (&va, _) in &count_a {
+        for &va in count_a.keys() {
             let n_ab = *joint.get(&(va, vb)).unwrap_or(&0);
             if n_ab > 0 && nb > 0 {
                 let p_a_given_b = n_ab as f64 / nb as f64;

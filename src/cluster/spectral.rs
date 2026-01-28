@@ -38,7 +38,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use strata::cluster::spectral::SpectralClustering;
+//! use tier::cluster::spectral::SpectralClustering;
 //! use ndarray::array;
 //!
 //! let points = array![
@@ -56,7 +56,7 @@
 //! - Ng, Jordan, Weiss (2001). "On Spectral Clustering"
 //! - von Luxburg (2007). "A Tutorial on Spectral Clustering"
 
-use lapl::{gaussian_similarity, knn_graph, normalized_laplacian};
+use lapl::{gaussian_similarity, knn_graph, spectral_embedding, SpectralEmbeddingConfig};
 use ndarray::Array2;
 
 use crate::{Error, Result};
@@ -149,15 +149,15 @@ impl SpectralClustering {
         // Build affinity matrix
         let affinity = self.build_affinity(points);
 
-        // Compute normalized Laplacian
-        let laplacian = normalized_laplacian(&affinity);
+        // Delegate spectral embedding to `lapl` (single source of truth for Laplacian + eigensolver policy).
+        // Spectral clustering typically uses the first k eigenvectors (Ng–Jordan–Weiss),
+        // then row-normalizes. Keeping the constant eigenvector improves stability here.
+        let mut cfg = SpectralEmbeddingConfig::default();
+        cfg.skip_first = false;
+        let embedding = spectral_embedding(&affinity, self.k, &cfg)
+            .map_err(|e| Error::Other(format!("lapl spectral_embedding failed: {e}")))?;
 
-        // Get embedding from Laplacian eigenvectors
-        // Since we don't have a proper eigensolver, we use power iteration
-        // to approximate the smallest eigenvectors
-        let embedding = self.laplacian_embedding(&laplacian)?;
-
-        // Run k-means on the embedding
+        // Run k-means on the embedding.
         self.kmeans_on_embedding(&embedding)
     }
 
@@ -174,8 +174,10 @@ impl SpectralClustering {
             });
         }
 
-        let laplacian = normalized_laplacian(affinity);
-        let embedding = self.laplacian_embedding(&laplacian)?;
+        let mut cfg = SpectralEmbeddingConfig::default();
+        cfg.skip_first = false;
+        let embedding = spectral_embedding(affinity, self.k, &cfg)
+            .map_err(|e| Error::Other(format!("lapl spectral_embedding failed: {e}")))?;
         self.kmeans_on_embedding(&embedding)
     }
 
@@ -205,134 +207,65 @@ impl SpectralClustering {
         }
     }
 
-    fn laplacian_embedding(&self, laplacian: &Array2<f64>) -> Result<Array2<f64>> {
-        let n = laplacian.nrows();
-        let k = self.k;
-
-        // Simple approach: use power iteration to find smallest eigenvectors
-        // of (I - L) which correspond to largest of (I - L), i.e., smallest of L
-        //
-        // For a proper implementation, use ndarray-linalg or similar.
-        // This is a simplified version for demonstration.
-
-        let mut embedding = Array2::zeros((n, k));
-
-        // Identity minus Laplacian (shifts spectrum)
-        let mut shifted = Array2::eye(n) - laplacian;
-
-        // Make it positive definite by shifting further
-        // The normalized Laplacian has eigenvalues in [0, 2]
-        // So (I - L) has eigenvalues in [-1, 1]
-        // We want the k largest eigenvalues of (I - L) = k smallest of L
-        shifted = &shifted + Array2::eye(n) * 1.0; // Now in [0, 2]
-
-        // Power iteration to find dominant eigenvectors
-        let mut vs: Vec<ndarray::Array1<f64>> = Vec::with_capacity(k);
-
-        for idx in 0..k {
-            // Random starting vector
-            let mut v: ndarray::Array1<f64> = (0..n)
-                .map(|i| ((i * 7 + idx * 13) % 97) as f64 / 97.0 - 0.5)
-                .collect();
-
-            // Power iteration
-            for _ in 0..50 {
-                // v = A @ v
-                v = shifted.dot(&v);
-
-                // Orthogonalize against previous eigenvectors
-                for prev in &vs {
-                    let proj = v.dot(prev);
-                    v = &v - &(prev * proj);
-                }
-
-                // Normalize
-                let norm = v.dot(&v).sqrt();
-                if norm > 1e-10 {
-                    v /= norm;
-                }
-            }
-
-            // Store eigenvector
-            for i in 0..n {
-                embedding[[i, idx]] = v[i];
-            }
-            vs.push(v);
-        }
-
-        // Row-normalize the embedding
-        for i in 0..n {
-            let mut row_norm_sq = 0.0;
-            for j in 0..k {
-                row_norm_sq += embedding[[i, j]] * embedding[[i, j]];
-            }
-            let row_norm = row_norm_sq.sqrt();
-            if row_norm > 1e-10 {
-                for j in 0..k {
-                    embedding[[i, j]] /= row_norm;
-                }
-            }
-        }
-
-        Ok(embedding)
-    }
-
     fn kmeans_on_embedding(&self, embedding: &Array2<f64>) -> Result<Vec<usize>> {
         let n = embedding.nrows();
         let d = embedding.ncols();
         let k = self.k;
 
-        // Initialize centroids (simple: first k points)
-        let mut centroids = Array2::zeros((k, d));
-        for i in 0..k.min(n) {
+        // Delegate k-means to `clump` (single source of truth for k-means correctness/perf).
+        let mut refs: Vec<&[f32]> = Vec::with_capacity(n);
+        let mut rows: Vec<Vec<f32>> = Vec::with_capacity(n);
+        for i in 0..n {
+            let mut row = Vec::with_capacity(d);
             for j in 0..d {
-                centroids[[i, j]] = embedding[[i, j]];
+                row.push(embedding[[i, j]] as f32);
             }
+            rows.push(row);
+        }
+        for row in &rows {
+            refs.push(row.as_slice());
         }
 
-        let mut labels = vec![0usize; n];
+        // Use a small number of deterministic restarts and pick the best WCSS.
+        // (k-means++ can still pick an unlucky first centroid on tiny problems.)
+        let base_seed = 42u64;
+        let mut best: Option<(f32, Vec<usize>)> = None;
 
-        for _ in 0..self.kmeans_iter {
-            // Assign points to nearest centroid
-            for i in 0..n {
-                let mut best_dist = f64::INFINITY;
-                let mut best_k = 0;
-                for ki in 0..k {
-                    let mut dist = 0.0;
-                    for j in 0..d {
-                        let diff = embedding[[i, j]] - centroids[[ki, j]];
-                        dist += diff * diff;
-                    }
-                    if dist < best_dist {
-                        best_dist = dist;
-                        best_k = ki;
-                    }
-                }
-                labels[i] = best_k;
-            }
+        for t in 0..4u64 {
+            let cfg = clump::KMeansConfig {
+                k,
+                max_iters: self.kmeans_iter,
+                tol: 1e-4,
+                seed: base_seed.wrapping_add(t),
+            };
+            let res = clump::kmeans(&refs, &cfg)
+                .map_err(|e| Error::Other(format!("clump kmeans failed: {e}")))?;
 
-            // Update centroids
-            let mut counts = vec![0usize; k];
-            centroids.fill(0.0);
-
-            for i in 0..n {
-                let ki = labels[i];
-                counts[ki] += 1;
+            // Compute WCSS in f32: sum_i ||x_i - c_{a_i}||^2
+            let mut wcss = 0.0f32;
+            for (i, &a) in res.assignments.iter().enumerate() {
+                let c = &res.centroids[a];
+                let x = refs[i];
+                let mut d2 = 0.0f32;
                 for j in 0..d {
-                    centroids[[ki, j]] += embedding[[i, j]];
+                    let diff = x[j] - c[j];
+                    d2 += diff * diff;
                 }
+                wcss += d2;
             }
 
-            for ki in 0..k {
-                if counts[ki] > 0 {
-                    for j in 0..d {
-                        centroids[[ki, j]] /= counts[ki] as f64;
+            match &mut best {
+                None => best = Some((wcss, res.assignments)),
+                Some((best_wcss, best_assignments)) => {
+                    if wcss < *best_wcss {
+                        *best_wcss = wcss;
+                        *best_assignments = res.assignments;
                     }
                 }
             }
         }
 
-        Ok(labels)
+        Ok(best.expect("n>0 implies at least one kmeans run").1)
     }
 }
 

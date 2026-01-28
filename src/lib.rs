@@ -1,27 +1,39 @@
 //! # tier
 //!
-//! Hierarchical abstraction: clustering, summarization, and tree structures for multi-resolution views.
+//! Hierarchical abstraction: tree structures + reconciliation / conformal primitives for multi-resolution views.
 //!
-//! This crate consolidates hierarchical primitives for the Tekne stack.
+//! **Default build** is hierarchy-first (minimal dependencies). Algorithmic clustering and community detection
+//! are opt-in via feature flags.
 
-pub mod error;
+#[cfg(feature = "cluster")]
 pub mod cluster;
-pub mod reconciliation;
-pub mod hierarchy;
+#[cfg(feature = "community")]
 pub mod community;
-pub mod summarize;
+/// Error types used across `tier`.
+pub mod error;
+pub mod hierarchy;
 pub mod metrics;
+pub mod reconciliation;
+#[cfg(feature = "summarize")]
+pub mod summarize;
+
+#[cfg(any(feature = "rkhs", feature = "wass"))]
+pub mod distribution_distance;
 
 #[cfg(test)]
 mod reconciliation_tests;
 
+#[cfg(feature = "cluster")]
 pub use crate::cluster::ItDendrogram;
-pub use crate::reconciliation::{reconcile, ReconciliationMethod, SummingMatrix};
 pub use crate::hierarchy::{HierarchicalConformal, HierarchyTree, ReconciliationScore};
+pub use crate::reconciliation::{reconcile, ReconciliationMethod, SummingMatrix};
 
 // Re-exports from Strata merge
 pub use error::{Error, Result};
 pub use metrics::{ari, completeness, fowlkes_mallows, homogeneity, nmi, purity, v_measure};
+
+#[cfg(any(feature = "rkhs", feature = "wass"))]
+pub use distribution_distance::{DistributionDistance, DistributionDistanceConfig};
 
 #[cfg(feature = "cluster")]
 pub use cluster::{Clustering, Gmm, HierarchicalClustering, Kmeans, Linkage, SoftClustering};
@@ -38,4 +50,3 @@ pub use community::{
 pub use summarize::Summarizer;
 
 pub use hierarchy::{Dendrogram, RaptorTree, TreeConfig};
-
